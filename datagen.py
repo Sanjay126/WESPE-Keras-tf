@@ -25,7 +25,8 @@ class DataGenerator(Sequence):
 			np.random.shuffle(self.indexes)
 
 	def __getitem__(self,idx):
-		image_list=self.image_list[self.batch_size*idx:self.batch_size*(idx+1)]
+		indexes=self.indexes[self.batch_size*idx:self.batch_size*(idx+1)]
+		image_list=[self.image_list[k] for k in indexes]
 		lowQ_images=np.empty((self.batch_size,*self.lowQ_size,self.n_channels))
 		highQ_images=np.empty((self.batch_size,*self.highQ_size,self.n_channels))
 		for i in range(len(image_list)):
