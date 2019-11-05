@@ -1,43 +1,43 @@
 import tensorflow as tf
-from keras.models import Model
-from keras.activations import tanh,relu,softmax
-from keras.layers.advanced_activations import PReLU
-import keras
-from keras import backend as K
-from keras.applications import MobileNetV2
+from tensorflow.keras.models import Model
+from tensorflow.keras.activations import tanh,relu,softmax
+from tensorflow.keras.layers import PReLU
+import tensorflow.keras
+from tensorflow.keras import backend as K
+from tensorflow.keras.applications import MobileNetV2
 import numpy as np
-from keras.layers import DepthwiseConv2D
-from keras.applications.mobilenet_v2 import MobileNetV2
-class ConvBlock(keras.layers.Layer):
+from tensorflow.keras.layers import DepthwiseConv2D,Conv2D
+from tensorflow.keras.applications.mobilenet_v2 import MobileNetV2
+from tensorflow.keras.losses import Huber as huber_loss
+class ConvBlock(tensorflow.keras.layers.Layer):
 	def __init__(self):
 		super(ConvBlock,self).__init__()
-		self.conv1 = keras.layers.Conv2d(64, (3,3), padding=1)
-		self.conv2 = keras.layers.Conv2d(64, (3,3), padding=1)
-		self.bn1 = keras.layers.BatchNormalization(axis=-1)
-		self.bn2 = keras.layers.BatchNormalization(axis=-1)
+		self.conv1 = Conv2D(64, (3,3), padding='same')
+		self.conv2 = Conv2D(64, (3,3), padding='same')
+		self.bn1 = tensorflow.keras.layers.BatchNormalization(axis=-1)
+		self.bn2 = tensorflow.keras.layers.BatchNormalization(axis=-1)
 
 	def call(self,inputs):
 		y = relu(self.bn1(self.conv1(inputs)))
 		y = relu(self.bn2(self.conv2(y)))+ inputs
 		return y
 
-class GaussianBlur(keras.layers.Layer):
+class GaussianBlur(tensorflow.keras.layers.Layer):
 	def __init__(self):
 		super(GaussianBlur,self).__init__()
 
 		kernel_size = 3  # set the filter size of Gaussian filter
-		kernel_weights = [[0.03797616, 0.044863533, 0.03797616],
-                  [0.044863533, 0.053, 0.044863533],
-                  [0.03797616, 0.044863533, 0.03797616]]
+		kernel_weights = np.asarray([[0.03797616, 0.044863533, 0.03797616],[0.044863533, 0.053, 0.044863533],[0.03797616, 0.044863533, 0.03797616]])
 
 		in_channels = 3 
 		kernel_weights = np.expand_dims(kernel_weights, axis=-1)
 		kernel_weights = np.repeat(kernel_weights, in_channels, axis=-1)
 		kernel_weights = np.expand_dims(kernel_weights, axis=-1)
-		
-		self.g_layer = DepthwiseConv2D(kernel_size, use_bias=False, padding='same')
-		self.g_layer.set_weights([kernel_weights])
-		g_layer.trainable = False 
+		print(kernel_weights.shape)
+		self.g_layer = DepthwiseConv2D(kernel_size, use_bias=False, padding='same',weights=[kernel_weights])
+		# print(self.g_layer.get_weights())
+		# self.g_layer.set_weights([kernel_weights])
+		self.g_layer.trainable = False 
 		
 
 	def call(self,inputs):
@@ -45,7 +45,7 @@ class GaussianBlur(keras.layers.Layer):
 		return g_layer_out
 
 
-class GrayScale(keras.layers.Layer):
+class GrayScale(tensorflow.keras.layers.Layer):
 	def __init__(self):
 		super(GrayScale,self).__init__()
 
@@ -55,46 +55,46 @@ class GrayScale(keras.layers.Layer):
 
 		return gray
 
-class Generator(keras.layers.Layer):
+class Generator(tensorflow.keras.layers.Layer):
 
 	def __init__(self,input_shape):
 		super(Generator, self).__init__()
-		self.conv1 = keras.layers.Conv2d(64, (9,9),input_shape=input_shape ,padding=4)
+		self.conv1 = Conv2D(64, (9,9),input_shape=input_shape ,padding='same')
 		self.block1 = ConvBlock()
 		self.block2=ConvBlock()
 		self.block3=ConvBlock()
 		self.block4=ConvBlock()
-		self.conv2 = keras.layers.Conv2d(64, (3,3), padding=1)
-		self.conv3 = keras.layers.Conv2d(64, (3,3), padding=1)
-		self.conv4 = keras.layers.Conv2d(64, (9,9), padding=4)
+		self.conv2 = Conv2D(64, (3,3), padding='same')
+		self.conv3 = Conv2D(64, (3,3), padding='same')
+		self.conv4 = Conv2D(64, (9,9), padding='same')
 	def call(self,inputs):
 		y=relu(self.conv1(inputs))
 		y=self.block4(self.block3(self.block2(self.block1(y))))
 		return tanh(self.conv4(relu(self.conv3(relu(self.conv2(y))))))
 
 
-class Discriminator(keras.layers.Layer):
+class Discriminator(tensorflow.keras.layers.Layer):
 	def __init__(self,input_shape):
 		super(Discriminator,self).__init__()
-		self.conv1=keras.layers.Conv2d(48, (11, 11), input_shape=input_shape,stride=4, padding=5)
+		self.conv1=Conv2D(48, (11, 11), input_shape=input_shape,strides=4, padding='same')
 		self.relu1=PReLU()
-		self.conv2=keras.layers.Conv2d(128, (5,5), stride=2, padding=2)
-		self.bn1=keras.layers.BatchNormalization(axis=-1)
+		self.conv2=Conv2D(128, (5,5), strides=2, padding='same')
+		self.bn1=tensorflow.keras.layers.BatchNormalization(axis=-1)
 		self.relu2=PReLU()
-		self.conv3=keras.layers.Conv2d(192, (3,3), stride=1, padding=1)
-		self.bn2=keras.layers.BatchNormalization(axis=-1)
+		self.conv3=Conv2D(192, (3,3), strides=1, padding='same')
+		self.bn2=tensorflow.keras.layers.BatchNormalization(axis=-1)
 		self.relu3=PReLU()
-		self.conv4=keras.layers.Conv2d(192, (3,3), stride=1, padding=1)
-		self.bn3=keras.layers.BatchNormalization(axis=-1)
+		self.conv4=Conv2D(192, (3,3), strides=1, padding='same')
+		self.bn3=tensorflow.keras.layers.BatchNormalization(axis=-1)
 		self.relu4=PReLU()
 		
-		self.conv5=keras.layers.Conv2d(128, (3,3), stride=2, padding=1)
-		self.bn4=keras.layers.BatchNormalization(axis=-1)
+		self.conv5=Conv2D(128, (3,3), strides=2, padding='same')
+		self.bn4=tensorflow.keras.layers.BatchNormalization(axis=-1)
 		self.relu5=PReLU()
 		
-		self.fc = keras.layers.Dense(128*7*7, 1024)
+		self.fc = tensorflow.keras.layers.Dense(1024,input_shape=(128,7,7))
 		self.relu6=PReLU()
-		self.out = keras.layers.Dense(1024, 2) 
+		self.out = tensorflow.keras.layers.Dense(2) 
 
 
 	def call(self, inputs):
@@ -126,9 +126,13 @@ class WESPE:
 		self.blur=GaussianBlur()
 		self.blur.trainable=False
 
+		self.content_loss=huber_loss
+		self.tv_loss=lambda images: tf.reduce_sum(tf.image.total_variation(images))
+		self.texture_loss=tensorflow.keras.losses.categorical_crossentropy
+		self.color_loss=tensorflow.keras.losses.categorical_crossentropy
 		self.gray=GrayScale()
 		self.gray.trainable=False
-		self.mobilenet=MobileNetV2(gen_input_shape)
+		self.mobilenet=MobileNetV2(input_shape=(100,100,3),include_top=False)
 
 	def train_step(self,x,y):
 
@@ -158,8 +162,8 @@ class WESPE:
 
 			content_loss=self.content_loss(mobilenet_x_fake,mobilenet_x_true)
 			tv_loss=self.tv_loss(y_fake)
-			dc_loss_g=self.color_loss(y_fake_blur_pred,tf.ones((batch_size,1)))
-			dt_loss_g=self.texture_loss(y_fake_gray_pred,tf.ones((batch_size,1)))
+			dc_loss_g=self.color_loss(tf.ones((batch_size,1)),y_fake_blur_pred)
+			dt_loss_g=self.texture_loss(tf.ones((batch_size,1)),y_fake_gray_pred)
 
 			net_loss=content_loss+10*tv_loss+ 0.005*(dc_loss_g+dt_loss_g)
 
@@ -172,14 +176,17 @@ class WESPE:
 		with tf.GradientTape() as tape:
 
 			y_fake_blur_pred=self.discriminator_c(y_fake_blur)
-			dc_loss=self.color_loss(y_fake_blur_pred,tf.ones((batch_size,1)))+self.color_loss(y_real_blur_pred,tf.zeros((batch_size,1)))
+			dc_loss=self.color_loss(tf.ones((batch_size,1)),y_fake_blur_pred)+self.color_loss(tf.zeros((batch_size,1)),y_real_blur_pred)
 			grads=tape.gradient(dc_loss,self.discriminator_c.trainable_weights)
 			disc_c_optimizer.apply_gradients(zip(grads),self.discriminator_c.trainable_weights)
 			
 			y_fake_gray_pred=self.discriminator_t(y_fake_gray)
-			dt_loss=self.texture_loss(y_fake_gray_pred,tf.ones((batch_size,1)))+self.texture_loss(y_real_gray_pred,tf.zeros((batch_size,1)))
+			dt_loss=self.texture_loss(tf.ones((batch_size,1)),y_fake_gray_pred)+self.texture_loss(tf.zeros((batch_size,1)),y_real_gray_pred)
 			grads=tape.gradient(dt_loss,self.discriminator_t.trainable_weights)
 			disc_c_optimizer.apply_gradients(zip(grads),self.discriminator_t.trainable_weights)
+
+
+		return net_loss,dc_loss,dt_loss
 
 
 
