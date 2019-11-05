@@ -133,6 +133,10 @@ class WESPE:
 		self.gray=GrayScale()
 		self.gray.trainable=False
 		self.mobilenet=MobileNetV2(input_shape=(100,100,3),include_top=False)
+		self.gen_g_optimizer=keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
+		self.gen_f_optimizer=keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
+		self.disc_c_optimizer=keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
+		self.disc_t_optimizer=keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
 
 	def train_step(self,x,y):
 
@@ -168,9 +172,9 @@ class WESPE:
 			net_loss=content_loss+10*tv_loss+ 0.005*(dc_loss_g+dt_loss_g)
 
 			grads = tape.gradient(net_loss, self.generator_g.trainable_weights)
-			gen_g_optimizer.apply_gradients(zip(grads, self.generator_g.trainable_weights))
+			self.gen_g_optimizer.apply_gradients(zip(grads, self.generator_g.trainable_weights))
 			grads = tape.gradient(net_loss, self.generator_f.trainable_weights)
-			gen_f_optimizer.apply_gradients(zip(grads, self.generator_f.trainable_weights))
+			self.gen_f_optimizer.apply_gradients(zip(grads, self.generator_f.trainable_weights))
 
 
 		with tf.GradientTape() as tape:
@@ -178,12 +182,12 @@ class WESPE:
 			y_fake_blur_pred=self.discriminator_c(y_fake_blur)
 			dc_loss=self.color_loss(tf.ones((batch_size,1)),y_fake_blur_pred)+self.color_loss(tf.zeros((batch_size,1)),y_real_blur_pred)
 			grads=tape.gradient(dc_loss,self.discriminator_c.trainable_weights)
-			disc_c_optimizer.apply_gradients(zip(grads),self.discriminator_c.trainable_weights)
+			self.disc_c_optimizer.apply_gradients(zip(grads),self.discriminator_c.trainable_weights)
 			
 			y_fake_gray_pred=self.discriminator_t(y_fake_gray)
 			dt_loss=self.texture_loss(tf.ones((batch_size,1)),y_fake_gray_pred)+self.texture_loss(tf.zeros((batch_size,1)),y_real_gray_pred)
 			grads=tape.gradient(dt_loss,self.discriminator_t.trainable_weights)
-			disc_c_optimizer.apply_gradients(zip(grads),self.discriminator_t.trainable_weights)
+			self.disc_t_optimizer.apply_gradients(zip(grads),self.discriminator_t.trainable_weights)
 
 
 		return net_loss,dc_loss,dt_loss
