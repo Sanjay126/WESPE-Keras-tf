@@ -4,11 +4,13 @@ from tensorflow.keras.activations import tanh,relu,softmax
 from tensorflow.keras.layers import PReLU
 import tensorflow.keras
 from tensorflow.keras import backend as K
-from tensorflow.keras.applications import MobileNetV2
 import numpy as np
-from tensorflow.keras.layers import DepthwiseConv2D,Conv2D
+from tensorflow.keras.layers import DepthwiseConv2D,Conv2D,Flatten
 from tensorflow.keras.applications.mobilenet_v2 import MobileNetV2
+from tensorflow.keras.applications.vgg19 import VGG19
 from tensorflow.keras.losses import Huber as huber_loss
+import cv2
+
 class ConvBlock(tensorflow.keras.layers.Layer):
 	def __init__(self):
 		super(ConvBlock,self).__init__()
@@ -50,23 +52,24 @@ class GrayScale(tensorflow.keras.layers.Layer):
 		super(GrayScale,self).__init__()
 
 	def call(self,image):
-		r, g, b = image[:,:,0], image[:,:,1], image[:,:,2]
+		print(image.shape)
+		r, g, b = image[:,:,:,0], image[:,:,:,1], image[:,:,:,2]
 		gray = 0.2989 * r + 0.5870 * g + 0.1140 * b
-
+		gray=tf.reshape(gray,(gray.shape[0],gray.shape[1],gray.shape[2],1))
 		return gray
 
 class Generator(tensorflow.keras.layers.Layer):
 
 	def __init__(self,input_shape):
 		super(Generator, self).__init__()
-		self.conv1 = Conv2D(64, (9,9),input_shape=input_shape ,padding='same')
+		self.conv1 = Conv2D(64, (9,9),input_shape=(100,100) ,padding='same')
 		self.block1 = ConvBlock()
 		self.block2=ConvBlock()
 		self.block3=ConvBlock()
 		self.block4=ConvBlock()
 		self.conv2 = Conv2D(64, (3,3), padding='same')
 		self.conv3 = Conv2D(64, (3,3), padding='same')
-		self.conv4 = Conv2D(64, (9,9), padding='same')
+		self.conv4 = Conv2D(3, (9,9), padding='same')
 	def call(self,inputs):
 		y=relu(self.conv1(inputs))
 		y=self.block4(self.block3(self.block2(self.block1(y))))
@@ -91,7 +94,7 @@ class Discriminator(tensorflow.keras.layers.Layer):
 		self.conv5=Conv2D(128, (3,3), strides=2, padding='same')
 		self.bn4=tensorflow.keras.layers.BatchNormalization(axis=-1)
 		self.relu5=PReLU()
-		
+		self.flatten=Flatten()
 		self.fc = tensorflow.keras.layers.Dense(1024,input_shape=(128,7,7))
 		self.relu6=PReLU()
 		self.out = tensorflow.keras.layers.Dense(2) 
@@ -103,7 +106,7 @@ class Discriminator(tensorflow.keras.layers.Layer):
 		y = self.relu3(self.bn2(self.conv3(y)))
 		y = self.relu4(self.bn3(self.conv4(y)))
 		y = self.relu5(self.bn4(self.conv5(y)))
-		y=self.relu6(self.fc(y))
+		y=self.relu6(self.fc(self.flatten(y)))
 		return softmax(self.out(y))
 
 
@@ -114,13 +117,13 @@ class WESPE:
 		#TODO: add compile arguments
 		# self.generator_g.compile()
 		
-		self.generator_f=Generator(disc_input_shape)
+		self.generator_f=Generator((100,100,3))
 		# self.generator_f.compile()
 
-		self.discriminator_c=Discriminator(disc_input_shape)
+		self.discriminator_c=Discriminator((100,100,3))
 		# self.discriminator_c.compile()
 
-		self.discriminator_t=Discriminator(disc_input_shape)
+		self.discriminator_t=Discriminator((100,100,1))
 		# self.discriminator_t.compile()
 
 		self.blur=GaussianBlur()
@@ -132,63 +135,68 @@ class WESPE:
 		self.color_loss=tensorflow.keras.losses.categorical_crossentropy
 		self.gray=GrayScale()
 		self.gray.trainable=False
-		self.mobilenet=MobileNetV2(input_shape=(128,128,3),include_top=False)
+		self.mobilenet=VGG19(input_shape=(100,100,3),include_top=False)
 		self.mobilenet.trainable=False
-		self.gen_g_optimizer=keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
-		self.gen_f_optimizer=keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
-		self.disc_c_optimizer=keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
-		self.disc_t_optimizer=keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
+		self.gen_g_optimizer=tensorflow.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
+		self.gen_f_optimizer=tensorflow.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
+		self.disc_c_optimizer=tensorflow.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
+		self.disc_t_optimizer=tensorflow.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
 
 	def train_step(self,x,y):
 
+		x=tf.convert_to_tensor(x)
+		y=tf.convert_to_tensor(y)
 		batch_size=x.shape[0]
-		with tf.GradientTape() as tape:
-			self.discriminator_c.trainable=False
-			self.discriminator_t.trainable=False
+		# with tf.GradientTape() as tape:
+    # tape.watch(x)
+    # tape.watch(y)
+		self.discriminator_c.trainable=False
+		self.discriminator_t.trainable=False
+		self.generator_g.trainable=True
+		self.generator_f.trainable=True
 
-			y_fake=self.generator_g(x)
-			x_fake=self.generator_f(y_fake)
+		y_fake=self.generator_g(x)
+		x_fake=self.generator_f(y_fake)
+		pos_indexes=tf.convert_to_tensor(np.asarray([[0,1]]*batch_size))
+		neg_indexes=tf.convert_to_tensor(np.asarray([[1,0]]*batch_size))
+		# mobilenet_x_true=self.mobilenet.predict(x)
+		# mobilenet_x_fake=self.mobilenet.predict(x_fake)
+		print(y_fake.shape)
+		y_real_blur=self.blur(y)
+		y_fake_blur=self.blur(y_fake)
 
-			mobilenet_x_true=self.mobilenet.predict(cv2.resize(x,(128,128)))
-			mobilenet_x_fake=self.mobilenet.predict(cv2.resize(x_fake,(128,128)))
+		y_fake_blur_pred=self.discriminator_c(y_fake_blur)
+		y_real_blur_pred=self.discriminator_c(y_real_blur)
+
+		y_fake_gray=self.gray(y_fake)
+		y_real_gray=self.gray(y)
+		print(y_fake_gray.shape)
+		y_fake_gray_pred=self.discriminator_t(y_fake_gray)
+		y_real_gray_pred=self.discriminator_t(y_real_gray)
+		print(y_fake_gray_pred.shape)
+		# content_loss=self.content_loss(mobilenet_x_fake,mobilenet_x_true)
+		tv_loss=self.tv_loss(y_fake)
+		dc_loss_g=self.color_loss(pos_indexes,y_fake_blur_pred)
+		dt_loss_g=self.texture_loss(pos_indexes,y_fake_gray_pred)
+		net_loss=10*tv_loss+ 0.005*(dc_loss_g+dt_loss_g)
+
+		grads = tf.gradients(net_loss, self.generator_g.trainable_weights)
+		self.gen_g_optimizer.apply_gradients(zip(grads, self.generator_g.trainable_weights))
+		grads = tf.gradients(net_loss, self.generator_f.trainable_weights)
+		self.gen_f_optimizer.apply_gradients(zip(grads, self.generator_f.trainable_weights))
 
 
-			y_real_blur=self.blur(y)
-			y_fake_blur=self.blur(y_fake)
-
-			y_fake_blur_pred=self.discriminator_c(y_fake_blur)
-			y_real_blur_pred=self.discriminator_c(y_real_blur)
-
-			y_fake_gray=self.gray(y_fake)
-			y_real_gray=self.gray(y)
-
-			y_fake_gray_pred=self.discriminator_t(y_fake_gray)
-			y_real_gray_pred=self.discriminator_t(y_real_gray)
-
-			content_loss=self.content_loss(mobilenet_x_fake,mobilenet_x_true)
-			tv_loss=self.tv_loss(y_fake)
-			dc_loss_g=self.color_loss(tf.ones((batch_size,1)),y_fake_blur_pred)
-			dt_loss_g=self.texture_loss(tf.ones((batch_size,1)),y_fake_gray_pred)
-
-			net_loss=content_loss+10*tv_loss+ 0.005*(dc_loss_g+dt_loss_g)
-
-			grads = tape.gradient(net_loss, self.generator_g.trainable_weights)
-			self.gen_g_optimizer.apply_gradients(zip(grads, self.generator_g.trainable_weights))
-			grads = tape.gradient(net_loss, self.generator_f.trainable_weights)
-			self.gen_f_optimizer.apply_gradients(zip(grads, self.generator_f.trainable_weights))
-
-
-		with tf.GradientTape() as tape:
-
-			y_fake_blur_pred=self.discriminator_c(y_fake_blur)
-			dc_loss=self.color_loss(tf.ones((batch_size,1)),y_fake_blur_pred)+self.color_loss(tf.zeros((batch_size,1)),y_real_blur_pred)
-			grads=tape.gradient(dc_loss,self.discriminator_c.trainable_weights)
-			self.disc_c_optimizer.apply_gradients(zip(grads),self.discriminator_c.trainable_weights)
-			
-			y_fake_gray_pred=self.discriminator_t(y_fake_gray)
-			dt_loss=self.texture_loss(tf.ones((batch_size,1)),y_fake_gray_pred)+self.texture_loss(tf.zeros((batch_size,1)),y_real_gray_pred)
-			grads=tape.gradient(dt_loss,self.discriminator_t.trainable_weights)
-			self.disc_t_optimizer.apply_gradients(zip(grads),self.discriminator_t.trainable_weights)
+		# with tf.GradientTape() as tape:
+    # tape.watch(y_fake_blur)
+    # tape.watch(y_fake_gray)
+		y_fake_blur_pred=self.discriminator_c(y_fake_blur)
+		dc_loss=self.color_loss(pos_indexes,y_fake_blur_pred)+self.color_loss(neg_indexes,y_real_blur_pred)
+		grads=tf.gradients(dc_loss,self.discriminator_c.trainable_weights)
+		self.disc_c_optimizer.apply_gradients(zip(grads),self.discriminator_c.trainable_weights)
+		y_fake_gray_pred=self.discriminator_t(y_fake_gray)
+		dt_loss=self.texture_loss(pos_indexes,y_fake_gray_pred)+self.texture_loss(neg_indexes,y_real_gray_pred)
+		grads=tf.gradients(dt_loss,self.discriminator_t.trainable_weights)
+		self.disc_t_optimizer.apply_gradients(zip(grads),self.discriminator_t.trainable_weights)
 
 
 		return net_loss,dc_loss,dt_loss

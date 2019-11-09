@@ -5,7 +5,7 @@ import cv2
 from tensorflow.keras.utils import Sequence
 
 class DataGenerator(Sequence):
-	def __init__(self,data_dir,phone,phone_res,camera_res,batch_size=32,shuffle=True):
+	def __init__(self,data_dir,phone,phone_res,camera_res,batch_size=2,shuffle=True):
 
 		self.lowQ_dir = os.path.join(data_dir, phone)
 		self.highQ_dir = os.path.join(data_dir, 'canon')
@@ -27,8 +27,8 @@ class DataGenerator(Sequence):
 	def __getitem__(self,idx):
 		indexes=self.indexes[self.batch_size*idx:self.batch_size*(idx+1)]
 		image_list=[self.image_list[k] for k in indexes]
-		lowQ_images=np.empty((self.batch_size,*self.lowQ_size,self.n_channels))
-		highQ_images=np.empty((self.batch_size,*self.highQ_size,self.n_channels))
+		lowQ_images=np.empty((self.batch_size,*self.lowQ_size,3),dtype=np.float32)
+		highQ_images=np.empty((self.batch_size,*self.highQ_size,3),dtype=np.float32)
 		for i in range(len(image_list)):
 			img_name = image_list[i]
 			lowQ_images[i,] =cv2.imread(os.path.join(self.lowQ_dir, img_name))/255.0
