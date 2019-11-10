@@ -140,7 +140,7 @@ class WESPE:
 		self.color_loss=tensorflow.keras.losses.categorical_crossentropy
 		self.gray=GrayScale()
 		self.gray.trainable=False
-		self.mobilenet=VGG19(input_shape=(100,100,3),include_top=False)
+		self.mobilenet=MobileNetV2(input_shape=(96,96,3),include_top=False)
 		self.mobilenet.trainable=False
 		self.gen_g_optimizer=tensorflow.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
 		self.gen_f_optimizer=tensorflow.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
@@ -168,8 +168,10 @@ class WESPE:
 			x_fake=self.generator_f(y_fake)
 			pos_indexes=tf.convert_to_tensor(np.asarray([[0,1]]*batch_size))
 			neg_indexes=tf.convert_to_tensor(np.asarray([[1,0]]*batch_size))
-			mobilenet_x_true=self.mobilenet(x)
-			mobilenet_x_fake=self.mobilenet(x_fake)
+
+
+			mobilenet_x_true=self.mobilenet(tf.image.resize(x,tf.constant([96,96])))
+			mobilenet_x_fake=self.mobilenet(tf.image.resize(x_fake,tf.constant([96,96])))
 			# print(y_fake.shape)
 			y_real_blur=self.blur(y)
 			y_fake_blur=self.blur(y_fake)
