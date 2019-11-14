@@ -44,7 +44,7 @@ def Resize_images(image):
     for item in range(len(image)):
             imResize = copy.deepcopy(image[item])
             x.append(cv2.resize(imResize, (720,1080)))
-           #print(x[item])
+            print(x[item])
     return x
             
 
@@ -86,14 +86,14 @@ def Dataset():
 
 def create_patch(faves_score,imgs,median):
     for i in range(len(faves_score)):
-        patches = imgs[i,:224,:224]
+        patches = image.extract_patches_2d(imgs[i], (224, 224), max_patches=1)[0]
         ##STORE PATCHES IN DIFFERENT DIRECTORY
         if (faves_score[i] > median):
             s="high"+str(i)
         else:
             s="low"+str(i)
         cv2.imwrite("/home/satyam/Desktop/personal/hl/"+s + '.jpg',patches)
-
+    return patches
 
 
 
@@ -159,3 +159,8 @@ def VGG_19():
 
         # testing
         # finetune_model.predict_generator() 
+
+
+if __name__=='__main__':
+    fav, imgs, median = Dataset()
+    a=create_patch(Dataset())
