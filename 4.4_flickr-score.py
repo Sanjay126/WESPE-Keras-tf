@@ -25,10 +25,6 @@ from sklearn.feature_extraction import image
 #from keras.models import Sequential
 #from keras.layers.core import Flatten, Dense, Dropout
 #from keras.layers.convolutional import Convolution2D, MaxPooling2D, ZeroPadding2D
-#from keras.layers import Activation
-#from sklearn.datasets import load_sample_image
-#from sklearn.feature_extraction import image
-
 
 
 DATADIR = "/home/satyam/Desktop/personal/flickr"
@@ -92,7 +88,7 @@ def create_patch(faves_score,imgs,median):
             s="high"+str(i)
         else:
             s="low"+str(i)
-        cv2.imwrite("/home/satyam/Desktop/personal/hl/"+s + '.jpg',patches)
+        cv2.imwrite("/home/satyam/Desktop/personal/hl/"+s + '.jpg',patches)    #Directory where patched images after labelling(FFS) is stored
     return patches
 
 
