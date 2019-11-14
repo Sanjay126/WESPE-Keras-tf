@@ -16,8 +16,11 @@ class Faves_model():
         self.data_dir=data_dir
         self.batch_size=batch_size
         self.lr=lr
+        self.class_list = ["Original","Tampered"]
+        self.fc_layers = [1024, 1024]
+        self.build_finetune_model(0.5,self.fc_layers,len(self.class_list))
 
-    def build_finetune_model(base_model, dropout, fc_layers, num_classes):
+    def build_finetune_model(self, dropout, fc_layers, num_classes):
         base_model = VGG19(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
         for layer in base_model.layers:
             layer.trainable = False
@@ -33,28 +36,22 @@ class Faves_model():
         predictions = Dense(num_classes, activation='softmax')(x) 
         
         self.finetune_model = Model(inputs=base_model.input, outputs=predictions)
+        adam = Adam(lr=self.lr)
+        self.finetune_model.compile(adam, loss='binary_crossentropy', metrics=['accuracy'])
 
+    
 
-    class_list = ["Original","Tampered"]
-    FC_LAYERS = [1024, 1024]
-    NUM_EPOCHS = 100
-    BATCH_SIZE = 25
-    lr=0.00005
-    dropout = 0.5
+    def train_model(self,train_x,train_y,validation_x,validation_y,epochs):
+    
 
-    finetune_model = build_finetune_model(base_model, dropout=dropout, fc_layers=FC_LAYERS, num_classes=len(class_list))
+        filepath="./checkpoints/" + "faves" + "_model_weights2.h5"
+        if not os.path.exists("./checkpoints"):
+            os.makedirs("./checkpoints")
 
-    adam = Adam(lr=0.00001)
-    finetune_model.compile(adam, loss='binary_crossentropy', metrics=['accuracy'])
+        checkpoint = ModelCheckpoint(filepath, monitor="val_acc", verbose=1, save_best_only=True)
+        callbacks_list = [checkpoint]
 
-    filepath="./checkpoints/" + "MobileNetV2" + "_model_weights2.h5"
-    if not os.path.exists("./checkpoints"):
-        os.makedirs("./checkpoints")
-
-    checkpoint = ModelCheckpoint(filepath, monitor="val_acc", verbose=1, save_best_only=True)
-    callbacks_list = [checkpoint]
-
-    history = finetune_model.fit_generator(train_generator, epochs=NUM_EPOCHS, workers=8,
-                                           shuffle=True, callbacks=callbacks_list,validation_data=valid_generator,validation_freq=5,use_multiprocessing=True)
+        history = self.finetune_model.fit(train_x,train_y, epochs=epochs, workers=8,
+                                               shuffle=True, callbacks=callbacks_list,validation_data=(validation_x,validation_y),validation_freq=5,use_multiprocessing=True)
 
 

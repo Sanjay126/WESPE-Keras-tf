@@ -14,16 +14,15 @@ def dataset_creation():
 
     faves_score =[]
     image=[]
-    size=len(faves_score)
+    size=len(os.listdir(DATADIR))
     patches=np.empty((size,224,224,3))
     labels=np.empty((size,2))
     for file_name in os.listdir(DATADIR):
             
         faves = re.findall(r"_0.(\d+).jpg", file_name)
-
         if not faves: 
           continue
-        faves_score.append(float(faves[0]))                
+        faves_score.append(float('0.'+faves[0]))                
     
     median = statistics.median(faves_score)
     print (median)
@@ -34,9 +33,9 @@ def dataset_creation():
         img_path = os.path.join(DATADIR , img_name)
         img=cv2.imread(img_path)
         resized=cv2.resize(img, (720,1280))
-        patch_x = np.random.choice(range(0,496)) 
-        patch_y=np.random.choice(range(0,1096))
-        patches[i,]=resized[patch_x:patch_x+224][patch_y:patch_y+224]
+        patch_x = np.random.choice(range(0,1056)) 
+        patch_y=np.random.choice(range(0,496))
+        patches[i,]=resized[patch_x:patch_x+224,patch_y:patch_y+224,:]
 
         if (faves_score[i] > median):
             labels[i,]=np.array([0,1])
