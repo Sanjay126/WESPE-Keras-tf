@@ -45,7 +45,7 @@ def dataset_creation():
     return patches,labels
 
 if __name__=='__main__':
-    patches,labels-dataset_creation()
+    patches,labels=dataset_creation()
     with open('faves_dataset.pkl','wb') as file:
         pickle.dump((patches,labels),file)
 

@@ -10,14 +10,15 @@ from sklearn.model_selection import train_test_split
 
 
 
-class VGG_19():
+class Faves_model():
 
-    HEIGHT = 224
-    WIDTH = 224
-
-    base_model = VGG19(weights='imagenet', include_top=False, input_shape=(HEIGHT, WIDTH, 3))
+    def __init__(self,data_dir,batch_size=25,lr=0.00005):
+        self.data_dir=data_dir
+        self.batch_size=batch_size
+        self.lr=lr
 
     def build_finetune_model(base_model, dropout, fc_layers, num_classes):
+        base_model = VGG19(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
         for layer in base_model.layers:
             layer.trainable = False
 
@@ -31,9 +32,8 @@ class VGG_19():
         # New softmax layer
         predictions = Dense(num_classes, activation='softmax')(x) 
         
-        finetune_model = Model(inputs=base_model.input, outputs=predictions)
+        self.finetune_model = Model(inputs=base_model.input, outputs=predictions)
 
-        return finetune_model
 
     class_list = ["Original","Tampered"]
     FC_LAYERS = [1024, 1024]
