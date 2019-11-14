@@ -3,9 +3,9 @@ import os
 import numpy as np
 import cv2
 from tensorflow.keras.utils import Sequence
-
+from operations import *
 class DataGenerator(Sequence):
-	def __init__(self,data_dir,phone,phone_res,camera_res,batch_size=2,shuffle=True):
+	def __init__(self,data_dir,phone,phone_res,camera_res,batch_size=1,training=False,shuffle=True):
 
 		self.lowQ_dir = os.path.join(data_dir, phone)
 		self.highQ_dir = os.path.join(data_dir, 'canon')
@@ -14,6 +14,7 @@ class DataGenerator(Sequence):
 		self.shuffle=shuffle
 		self.lowQ_size=phone_res
 		self.highQ_size=camera_res
+		self.training=training
 		self.on_epoch_end()
 
 	def __len__(self):
@@ -29,10 +30,16 @@ class DataGenerator(Sequence):
 		image_list=[self.image_list[k] for k in indexes]
 		lowQ_images=np.empty((self.batch_size,*self.lowQ_size,3),dtype=np.float32)
 		highQ_images=np.empty((self.batch_size,*self.highQ_size,3),dtype=np.float32)
+		highQ_images_coupled=np.empty((self.batch_size,*self.highQ_size,3),dtype=np.float32)
 		for i in range(len(image_list)):
 			img_name = image_list[i]
-			lowQ_images[i,] =cv2.imread(os.path.join(self.lowQ_dir, img_name))/255.0
-			highQ_images[i,] = cv2.imread(os.path.join(self.highQ_dir, img_name))/255.0
+			lowQ_images[i,] =preprocess(cv2.imread(os.path.join(self.lowQ_dir, img_name)))
+			if self.training:
+				highQ_images_coupled[i,] = preprocess(cv2.imread(os.path.join(self.highQ_dir, img_name)))
+				img_name=np.random.choice(self.image_list)
+				highQ_images[i,] = preprocess(cv2.imread(os.path.join(self.highQ_dir, img_name)))
+			else:
+				highQ_images[i,] = preprocess(cv2.imread(os.path.join(self.highQ_dir, img_name)))
 
-		return lowQ_images, highQ_images
+		return lowQ_images, highQ_images,highQ_images_coupled
 

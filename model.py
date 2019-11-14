@@ -72,11 +72,13 @@ class Generator(tensorflow.keras.layers.Layer):
 			self.block4=ConvBlock()
 			self.conv2 = Conv2D(64, (3,3), padding='same')
 			self.conv3 = Conv2D(64, (3,3), padding='same')
-			self.conv4 = Conv2D(3, (9,9), padding='same')
+			self.conv4 = Conv2D(64, (3,3), padding='same')
+			self.conv5=Conv2D(3,(1,1),padding='same')
 	def call(self,inputs):
 		y=relu(self.conv1(inputs))
 		y=self.block4(self.block3(self.block2(self.block1(y))))
-		return tanh(self.conv4(relu(self.conv3(relu(self.conv2(y))))))
+		temp=relu(self.conv3(relu(self.conv2(y))))
+		return softmax(self.conv5(relu((self.conv4(temp)))))
 
 
 class Discriminator(tensorflow.keras.layers.Layer):
@@ -113,29 +115,30 @@ class Discriminator(tensorflow.keras.layers.Layer):
 		y=self.relu6(self.fc(self.flatten(y)))
 		return softmax(self.out(y))
 
+def tvlossfn(images):
+	return tf.reduce_sum(tf.image.total_variation(images))
 
 
 class WESPE:
 	def __init__(self,gen_input_shape,disc_input_shape):
 		self.generator_g=Generator(gen_input_shape, scope="generator_g")
-		#TODO: add compile arguments
-		# self.generator_g.compile()
+		self.generator_g.trainable=True
 		
 		self.generator_f=Generator(gen_input_shape, scope="generator_f")
-		# self.generator_f.compile()
+		self.generator_f.trainable=True
 
 		self.discriminator_c=Discriminator((100,100,3), scope="discriminator_c")
-		# self.discriminator_c.compile()
+		self.discriminator_c.trainable=True
 
 		self.discriminator_t=Discriminator((100,100,1), scope="discriminator_t")
-		# self.discriminator_t.compile()
+		self.discriminator_t.trainable=True
 
 		self.blur=GaussianBlur()
 		self.blur.trainable=False
 		# self.huber_obj=
 		self.content_loss=huber_loss()
 
-		self.tv_loss=lambda images: tf.reduce_sum(tf.image.total_variation(images))
+		self.tv_loss=tvlossfn
 		self.texture_loss=tensorflow.keras.losses.categorical_crossentropy
 		self.color_loss=tensorflow.keras.losses.categorical_crossentropy
 		self.gray=GrayScale()
@@ -146,6 +149,9 @@ class WESPE:
 		self.gen_f_optimizer=tensorflow.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
 		self.disc_c_optimizer=tensorflow.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
 		self.disc_t_optimizer=tensorflow.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
+		# print('trainable_weights')
+		# print(str(len(self.generator_g.trainable_weights)+len(self.generator_f.trainable_weights)+len(self.discriminator_c.trainable_weights)+len(self.discriminator_t.trainable_weights)))
+
 
 	def train_step(self,x,y):
 
@@ -222,9 +228,11 @@ class WESPE:
 		grads=tape.gradient(dc_loss,self.discriminator_c.trainable_weights)
 		self.disc_c_optimizer.apply_gradients(zip(grads,self.discriminator_c.trainable_weights))
 
-		return {'net_loss':net_loss.numpy(), 'dc_loss':dc_loss.numpy(),'dt_loss':dt_loss.numpy()}
+		return {'net_loss':net_loss.numpy()[0], 'dc_loss':dc_loss.numpy()[0],'dt_loss':dt_loss.numpy()[0]},y_fake
 
 
 
 	def predict(self,x):
+		self.generator_f.trainable=False
+		self.generator_g.trainable=False
 		return self.generator_g(x)
