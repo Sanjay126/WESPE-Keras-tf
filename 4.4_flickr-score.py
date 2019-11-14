@@ -55,7 +55,7 @@ class Dataset():
 class Resize_images:
     for img in os.listdir("."):
         print(img)
-        # img_path = DATADIR + '/' + os.listdir(DATADIR)[img]
+                # img_path = DATADIR + '/' + os.listdir(DATADIR)[img]
         # image = cv2.imread(img_path)
         # resultant_image = cv2.resize(img, dsize=(720, 1280), interpolation=cv2.INTER_CUBIC)
 
