@@ -1,19 +1,24 @@
 import numpy as np
 import os
+import sys
 import cv2
 import pandas as pd
 import re
 import statistics
+import pickle
+
+from PIL import Image
 from tensorflow.keras.layers import Dense, Activation, Flatten, Dropout
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.optimizers import SGD, Adam
-import pickle
 from datagen import DataGenerator as DataGenerator2
 import datagen
 from tensorflow.keras.applications.mobilenet_v2 import MobileNetV2 
 from tensorflow.keras.callbacks import ModelCheckpoint
 from sklearn.externals import joblib
 from sklearn.model_selection import train_test_split
+import copy
+from sklearn.feature_extraction import image
 
 
 #import keras
@@ -28,61 +33,71 @@ from sklearn.model_selection import train_test_split
 
 DATADIR = "/home/satyam/Desktop/personal/flickr"
 
+def Resize_images(image):
+ 
+    #for img in os.listdir(DATADIR): 
+    #
+    #    img_path = DATADIR + '/' + img
+    #    image = cv2.imread(img_path)
+    #    resultant_image = cv2.resize(img, dsize=(720, 1280), interpolation=cv2.INTER_CUBIC)
+    x=[]
+    for item in range(len(image)):
+            imResize = copy.deepcopy(image[item])
+            x.append(cv2.resize(imResize, (720,1080)))
+           #print(x[item])
+    return x
+            
+
+
 def Dataset():
 
     faves_score = list()
-
+    image=[]
     for img in os.listdir(DATADIR):
-        print(img)
+        #print(img)
         img_path = DATADIR + '/' + img
-        image = cv2.imread(img_path)
+        image.append(cv2.imread(img_path))
 
-        for file_name in DATADIR:
-        
-            faves = re.findall("_0._(\d+).jpg", file_name)
-            if not faves: 
-                continue
-            print (faves[0])
-           #faves_score.append(faves[0])                       ###NEEDS TO BE SORTED
-
-                          
-
-   #print(faves_score)       
-
-   #median = statistics.median(faves_score)
-
-
-
-def Resize_images():
- 
-    for img in os.listdir(DATADIR): 
-
-        img_path = DATADIR + '/' + img
-        image = cv2.imread(img_path)
-        resultant_image = cv2.resize(img, dsize=(720, 1280), interpolation=cv2.INTER_CUBIC)
+        #print (os.listdir(DATADIR))
+    for file_name in os.listdir(DATADIR):
+            
+        faves = re.findall(r"_0.(\d+).jpg", file_name)
+        if not faves: 
+          continue
+        #print (faves[0])
+        faves_score.append(float(faves[0]))                
+    median = statistics.median(faves_score)
+    print (median)
+    print(img_path,image[0])
+    k=Resize_images(image)
+    return faves_score,k,median
 
 
 
-def FFS_label():
-    for i in (faves_score):
 
-    	if faves_score[i] > median:
-    		new_img_path = DATADIR + '/'+"H" + os.listdir(DATADIR)[i]                                              
+#def FFS_label():
+#    for i in (faves_score):
+#
+#    	if faves_score[i] > median:
+#    		new_img_path = DATADIR + '/'+"H" + os.listdir(DATADIR)[i]                                              
+#    	else:
+#   		new_img_path = DATADIR + '/'+"L" + os.listdir(DATADIR)[i]
 
-    	else:
-    		new_img_path = DATADIR + '/'+"L" + os.listdir(DATADIR)[i]
 
-
-def create_patch():
-    
-    for img in os.listdir(DATADIR):
-
-        img_patch = cv2.imread(new_img_path)
-        patches = image.extract_patches_2d(img_patch, (224, 224), max_patches = 1)
-
+def create_patch(faves_score,imgs,median):
+    for i in range(len(faves_score)):
+        patches = imgs[i,:224,:224]
         ##STORE PATCHES IN DIFFERENT DIRECTORY
-        # cv2.imwrite(filepath, patches)
+        if (faves_score[i] > median):
+            s="high"+str(i)
+        else:
+            s="low"+str(i)
+        cv2.imwrite("/home/satyam/Desktop/personal/hl/"+s + '.jpg',patches)
 
+
+
+
+##### VGG-19 model to be done #####
 
 def VGG_19():
 
