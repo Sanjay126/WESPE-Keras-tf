@@ -2,17 +2,18 @@ import numpy as np
 import os
 import cv2
 import pandas as pd
-import re2
+import re
 import statistics
 from tensorflow.keras.layers import Dense, Activation, Flatten, Dropout
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.optimizers import SGD, Adam
 import pickle
-from datagen import DataGenerator2
+from datagen import DataGenerator as DataGenerator2
 import datagen
 from tensorflow.keras.applications.mobilenet_v2 import MobileNetV2 
 from tensorflow.keras.callbacks import ModelCheckpoint
 from sklearn.externals import joblib
+from sklearn.model_selection import train_test_split
 
 
 #import keras
@@ -27,53 +28,52 @@ from sklearn.externals import joblib
 
 DATADIR = "/home/satyam/Desktop/personal/flickr"
 
-class Dataset():
+def Dataset():
 
-    j=1
     faves_score = list()
 
     for img in os.listdir(DATADIR):
-
-        img_path = DATADIR + '/' + os.listdir(DATADIR)[img]
+        print(img)
+        img_path = DATADIR + '/' + img
         image = cv2.imread(img_path)
 
-        for file_name in img_path:
-            
-            faves = re2.findall("flickr_"+'j' + "_(\d+).jpg", file_name)
+        for file_name in DATADIR:
+        
+            faves = re.findall("_0._(\d+).jpg", file_name)
             if not faves: 
                 continue
+            print (faves[0])
+           #faves_score.append(faves[0])                       ###NEEDS TO BE SORTED
 
-            j++
-            faves_score.append(float(faves[0]))
+                          
+
+   #print(faves_score)       
+
+   #median = statistics.median(faves_score)
 
 
 
-    median = statistics.median(faves_score)
-
-
-
-class Resize_images():
+def Resize_images():
  
     for img in os.listdir(DATADIR): 
 
-        img_path = DATADIR + '/' + os.listdir(DATADIR)[img]
+        img_path = DATADIR + '/' + img
         image = cv2.imread(img_path)
         resultant_image = cv2.resize(img, dsize=(720, 1280), interpolation=cv2.INTER_CUBIC)
 
 
 
-class FFS_label():
+def FFS_label():
     for i in (faves_score):
 
     	if faves_score[i] > median:
     		new_img_path = DATADIR + '/'+"H" + os.listdir(DATADIR)[i]                                              
 
-
     	else:
     		new_img_path = DATADIR + '/'+"L" + os.listdir(DATADIR)[i]
 
 
-class create_patch():
+def create_patch():
     
     for img in os.listdir(DATADIR):
 
@@ -81,17 +81,15 @@ class create_patch():
         patches = image.extract_patches_2d(img_patch, (224, 224), max_patches = 1)
 
         ##STORE PATCHES IN DIFFERENT DIRECTORY
+        # cv2.imwrite(filepath, patches)
 
 
-class VGG_19():
+def VGG_19():
 
         HEIGHT = 224
         WIDTH = 224
 
         base_model = MobileNetV2(weights='imagenet', include_top=False, input_shape=(HEIGHT, WIDTH, 3))
-
-
-
 
         def build_finetune_model(base_model, dropout, fc_layers, num_classes):
             for layer in base_model.layers:
@@ -144,4 +142,5 @@ class VGG_19():
         # history = base_model.predict_generator(train_generator, workers=8)
         print(finetune_model.evaluate_generator(test_generator))
 
-
+        # testing
+        # finetune_model.predict_generator() 
