@@ -8,6 +8,17 @@ import statistics
 import pickle
 
 DATADIR = "./flickr"
+def create_patches(images,no_of_patches=5):
+    patches=np.empty((len(images)*5,224,224,3))
+    for i in range(len(images)):
+        img=images[i]
+        shape_x,shape_y,_=img.shape
+        patches_x=np.random.choice(range(0,shape_x-224),size=5)
+        patches_y=np.random.choice(range(0,shape_y-224),size=5)
+        for j in range(5):
+            patches[i+j,]=resized[patches_x[j]:patches_x[j]+224,patches_y[j]:patches_y[j]+224,:]
+
+    return patches
 
 
 def dataset_creation():
