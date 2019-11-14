@@ -1,6 +1,6 @@
 import tensorflow as tf
 from tensorflow.keras.models import Model
-from tensorflow.keras.activations import tanh,relu,softmax
+from tensorflow.keras.activations import tanh,relu,softmax,sigmoid
 from tensorflow.keras.layers import PReLU
 import tensorflow.keras
 from tensorflow.keras import backend as K
@@ -15,8 +15,8 @@ import cv2
 class ConvBlock(tensorflow.keras.layers.Layer):
 	def __init__(self):
 		super(ConvBlock,self).__init__()
-		self.conv1 = Conv2D(64, (3,3), padding='same')
-		self.conv2 = Conv2D(64, (3,3), padding='same')
+		self.conv1 = Conv2D(64, (3,3),use_bias=True, padding='same')
+		self.conv2 = Conv2D(64, (3,3),use_bias=True, padding='same')
 		self.bn1 = tensorflow.keras.layers.BatchNormalization(axis=-1)
 		self.bn2 = tensorflow.keras.layers.BatchNormalization(axis=-1)
 
@@ -65,43 +65,43 @@ class Generator(tensorflow.keras.layers.Layer):
 		super(Generator, self).__init__()
 		self.scope = scope
 		with tf.name_scope(scope) as tf_scope:
-			self.conv1 = Conv2D(64, (9,9),input_shape=(100,100) ,padding='same')
+			self.conv1 = Conv2D(64, (9,9),input_shape=(100,100) ,use_bias=True,padding='same')
 			self.block1 = ConvBlock()
 			self.block2=ConvBlock()
 			self.block3=ConvBlock()
 			self.block4=ConvBlock()
-			self.conv2 = Conv2D(64, (3,3), padding='same')
-			self.conv3 = Conv2D(64, (3,3), padding='same')
-			self.conv4 = Conv2D(64, (3,3), padding='same')
-			self.conv5=Conv2D(3,(1,1),padding='same')
+			self.conv2 = Conv2D(64, (3,3),use_bias=True, padding='same')
+			self.conv3 = Conv2D(64, (3,3),use_bias=True, padding='same')
+			self.conv4 = Conv2D(3, (9,9),use_bias=True, padding='same')
 	def call(self,inputs):
 		y=relu(self.conv1(inputs))
 		y=self.block4(self.block3(self.block2(self.block1(y))))
 		temp=relu(self.conv3(relu(self.conv2(y))))
-		return softmax(self.conv5(relu((self.conv4(temp)))))
+		return sigmoid(self.conv4(temp))
+
 
 
 class Discriminator(tensorflow.keras.layers.Layer):
 	def __init__(self,input_shape, scope="discriminator"):
 		super(Discriminator,self).__init__()
 		with tf.name_scope(scope) as tf_scope:
-			self.conv1=Conv2D(48, (11, 11), input_shape=input_shape,strides=4, padding='same')
+			self.conv1=Conv2D(48, (11, 11),use_bias=True, input_shape=input_shape,strides=4, padding='same')
 			self.relu1=PReLU()
-			self.conv2=Conv2D(128, (5,5), strides=2, padding='same')
+			self.conv2=Conv2D(128, (5,5),use_bias=True, strides=2, padding='same')
 			self.bn1=tensorflow.keras.layers.BatchNormalization(axis=-1)
 			self.relu2=PReLU()
-			self.conv3=Conv2D(192, (3,3), strides=1, padding='same')
+			self.conv3=Conv2D(192, (3,3),use_bias=True, strides=1, padding='same')
 			self.bn2=tensorflow.keras.layers.BatchNormalization(axis=-1)
 			self.relu3=PReLU()
-			self.conv4=Conv2D(192, (3,3), strides=1, padding='same')
+			self.conv4=Conv2D(192, (3,3),use_bias=True, strides=1, padding='same')
 			self.bn3=tensorflow.keras.layers.BatchNormalization(axis=-1)
 			self.relu4=PReLU()
 			
-			self.conv5=Conv2D(128, (3,3), strides=2, padding='same')
+			self.conv5=Conv2D(128, (3,3),use_bias=True, strides=2, padding='same')
 			self.bn4=tensorflow.keras.layers.BatchNormalization(axis=-1)
 			self.relu5=PReLU()
 			self.flatten=Flatten()
-			self.fc = tensorflow.keras.layers.Dense(1024,input_shape=(128,7,7))
+			self.fc = tensorflow.keras.layers.Dense(1024)
 			self.relu6=PReLU()
 			self.out = tensorflow.keras.layers.Dense(2) 
 
@@ -113,11 +113,15 @@ class Discriminator(tensorflow.keras.layers.Layer):
 		y = self.relu4(self.bn3(self.conv4(y)))
 		y = self.relu5(self.bn4(self.conv5(y)))
 		y=self.relu6(self.fc(self.flatten(y)))
-		return softmax(self.out(y))
+		return self.out(y)
 
 def tvlossfn(images):
-	return tf.reduce_sum(tf.image.total_variation(images))
+	return tf.reduce_sum(tf.image.total_variation(images))/30000
 
+def softmax_loss(x,y):
+	return tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(labels=x,logits=y))
+def content_losses(x,y):
+	return tf.reduce_mean(tf.square(x - y))/30000
 
 class WESPE:
 	def __init__(self,gen_input_shape,disc_input_shape):
@@ -136,19 +140,24 @@ class WESPE:
 		self.blur=GaussianBlur()
 		self.blur.trainable=False
 		# self.huber_obj=
-		self.content_loss=huber_loss()
+		# self.content_loss=huber_loss()
 
 		self.tv_loss=tvlossfn
-		self.texture_loss=tensorflow.keras.losses.categorical_crossentropy
-		self.color_loss=tensorflow.keras.losses.categorical_crossentropy
+		# self.texture_loss=tensorflow.keras.losses.categorical_crossentropy
+		# self.color_loss=tensorflow.keras.losses.categorical_crossentropy
+		self.content_loss=content_losses
+		self.texture_loss=softmax_loss
+		self.color_loss=softmax_loss
+
+
 		self.gray=GrayScale()
 		self.gray.trainable=False
 		self.mobilenet=MobileNetV2(input_shape=(96,96,3),include_top=False)
 		self.mobilenet.trainable=False
 		self.gen_g_optimizer=tensorflow.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
 		self.gen_f_optimizer=tensorflow.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
-		self.disc_c_optimizer=tensorflow.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
-		self.disc_t_optimizer=tensorflow.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
+		self.disc_c_optimizer=tensorflow.keras.optimizers.Nadam(learning_rate=0.001, beta_1=0.9, beta_2=0.999)
+		self.disc_t_optimizer=tensorflow.keras.optimizers.Nadam(learning_rate=0.001, beta_1=0.9, beta_2=0.999)
 		# print('trainable_weights')
 		# print(str(len(self.generator_g.trainable_weights)+len(self.generator_f.trainable_weights)+len(self.discriminator_c.trainable_weights)+len(self.discriminator_t.trainable_weights)))
 
@@ -172,8 +181,8 @@ class WESPE:
 			# tape.watch(y_fake)
 
 			x_fake=self.generator_f(y_fake)
-			pos_indexes=tf.convert_to_tensor(np.asarray([[0,1]]*batch_size))
-			neg_indexes=tf.convert_to_tensor(np.asarray([[1,0]]*batch_size))
+			pos_indexes=tf.convert_to_tensor(np.asarray([[1.0,0.0]]*batch_size,dtype=np.float32))
+			neg_indexes=tf.convert_to_tensor(np.asarray([[0.0,1.0]]*batch_size,dtype=np.float32))
 
 
 			mobilenet_x_true=self.mobilenet(tf.image.resize(x,tf.constant([96,96])))
@@ -191,10 +200,11 @@ class WESPE:
 			y_fake_gray_pred=self.discriminator_t(y_fake_gray)
 			y_real_gray_pred=self.discriminator_t(y_real_gray)
 			# print(y_fake_gray_pred.shape)
-			content_loss=tf.math.reduce_mean(self.content_loss.fn(mobilenet_x_fake,mobilenet_x_true))
+			# content_loss=tf.math.reduce_mean(self.content_loss.fn(mobilenet_x_fake,mobilenet_x_true))
+			content_loss=self.content_loss(mobilenet_x_fake,mobilenet_x_true)
 			tv_loss=self.tv_loss(y_fake)
-			dc_loss_g=self.color_loss(pos_indexes,y_fake_blur_pred)
-			dt_loss_g=self.texture_loss(pos_indexes,y_fake_gray_pred)
+			dc_loss_g=self.color_loss(y_real_blur_pred,y_fake_blur_pred)
+			dt_loss_g=self.texture_loss(y_real_blur_pred,y_fake_gray_pred)
 			net_loss=content_loss+10*tv_loss+ 0.005*(dc_loss_g+dt_loss_g)
 
 		grads = tape.gradient(net_loss, self.generator_g.trainable_weights)
@@ -216,10 +226,10 @@ class WESPE:
 
 			y_fake_blur_pred=self.discriminator_c(y_fake_blur)
 			y_real_blur_pred=self.discriminator_c(y_real_blur)
-			dc_loss=self.color_loss(pos_indexes,y_fake_blur_pred)+self.color_loss(neg_indexes,y_real_blur_pred)
+			dc_loss=self.color_loss(neg_indexes,y_fake_blur_pred)+self.color_loss(pos_indexes,y_real_blur_pred)
 			y_fake_gray_pred=self.discriminator_t(y_fake_gray)
 			y_real_gray_pred=self.discriminator_t(y_real_gray)
-			dt_loss=self.texture_loss(pos_indexes,y_fake_gray_pred)+self.texture_loss(neg_indexes,y_real_gray_pred)
+			dt_loss=self.texture_loss(neg_indexes,y_fake_gray_pred)+self.texture_loss(pos_indexes,y_real_gray_pred)
 
 		grads=tape.gradient(dt_loss,self.discriminator_t.trainable_weights)
 		# print(grads)
@@ -228,7 +238,7 @@ class WESPE:
 		grads=tape.gradient(dc_loss,self.discriminator_c.trainable_weights)
 		self.disc_c_optimizer.apply_gradients(zip(grads,self.discriminator_c.trainable_weights))
 
-		return {'net_loss':net_loss.numpy()[0], 'dc_loss':dc_loss.numpy()[0],'dt_loss':dt_loss.numpy()[0]},y_fake
+		return {'net_loss':net_loss.numpy(), 'dc_loss':dc_loss.numpy(),'dt_loss':dt_loss.numpy()},y_fake
 
 
 

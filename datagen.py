@@ -34,12 +34,9 @@ class DataGenerator(Sequence):
 		for i in range(len(image_list)):
 			img_name = image_list[i]
 			lowQ_images[i,] =preprocess(cv2.imread(os.path.join(self.lowQ_dir, img_name)))
-			if self.training:
-				highQ_images_coupled[i,] = preprocess(cv2.imread(os.path.join(self.highQ_dir, img_name)))
-				img_name=np.random.choice(self.image_list)
-				highQ_images[i,] = preprocess(cv2.imread(os.path.join(self.highQ_dir, img_name)))
-			else:
-				highQ_images[i,] = preprocess(cv2.imread(os.path.join(self.highQ_dir, img_name)))
+			highQ_images_coupled[i,] = preprocess(cv2.imread(os.path.join(self.highQ_dir, img_name)))
+			img_name=np.random.choice(self.image_list)
+			highQ_images[i,] = preprocess(cv2.imread(os.path.join(self.highQ_dir, img_name)))
 
 		return lowQ_images, highQ_images,highQ_images_coupled
 
