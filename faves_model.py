@@ -59,11 +59,13 @@ class Faves_model():
                                                shuffle=True, callbacks=callbacks_list,validation_data=validation_generator,validation_freq=5,use_multiprocessing=True)
         print("testing")
         print(self.finetune_model.evaluate_generator(test_generator))
+        self.finetune_model.save_weights("./model_weights.h5")
+
 
         self.model_ready=True
 
     def load_finetune_model(self,model_path):
-        self.finetune_model=load_model(model_path)
+        self.finetune_model.load_weights(model_path)
         self.model_ready=True
     
     def predict(self,images):
