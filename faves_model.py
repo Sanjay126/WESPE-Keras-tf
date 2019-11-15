@@ -2,8 +2,6 @@
 from tensorflow.keras.layers import Dense, Activation, Flatten, Dropout
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.optimizers import SGD, Adam
-from datagen import DataGenerator as DataGenerator2
-import datagen
 from tensorflow.keras.applications.vgg19 import VGG19
 from tensorflow.keras.callbacks import ModelCheckpoint
 from sklearn.model_selection import train_test_split
