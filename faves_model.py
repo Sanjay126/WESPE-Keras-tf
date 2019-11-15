@@ -41,7 +41,7 @@ class Faves_model():
 
     
 
-    def train_model(self,train_x,train_y,validation_x,validation_y,epochs):
+    def train_model(self,epochs=100,data_dir='./flickr_dataset'):
     
 
         filepath="./checkpoints/" + "faves" + "_model_weights2.h5"
@@ -51,7 +51,10 @@ class Faves_model():
         checkpoint = ModelCheckpoint(filepath, monitor="val_acc", verbose=1, save_best_only=True)
         callbacks_list = [checkpoint]
 
-        history = self.finetune_model.fit(train_x,train_y, epochs=epochs, workers=8,
-                                               shuffle=True, callbacks=callbacks_list,validation_data=(validation_x,validation_y),validation_freq=5,use_multiprocessing=True)
+        train_generator,validation_generator,test_generator=getGenerators(data_dir,25,2,2)
+        history = self.finetune_model.fit_generator(train_generator, epochs=epochs, workers=8,
+                                               shuffle=True, callbacks=callbacks_list,validation_data=validation_generator,validation_freq=5,use_multiprocessing=True)
+        print("testing")
+        print(self.finetune_model.evaluate_generator(test_generator))
 
 
