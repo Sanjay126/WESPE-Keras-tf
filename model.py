@@ -77,7 +77,7 @@ class Generator(tensorflow.keras.layers.Layer):
 		y=relu(self.conv1(inputs))
 		y=self.block4(self.block3(self.block2(self.block1(y))))
 		temp=relu(self.conv3(relu(self.conv2(y))))
-		return sigmoid(self.conv4(temp))
+		return tanh(self.conv4(temp))
 
 
 

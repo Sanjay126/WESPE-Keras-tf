@@ -56,8 +56,8 @@ class DataGenerator(Sequence):
 
 def getGenerators(data_dir,train_batch_size,valid_batch_size,test_batch_size):
 
-	image_list = os.listdir(data_dir,'low')
-	image_list.extend(os.listdir(data_dir,'high'))
+	image_list = os.listdir(os.path.join(data_dir,'low'))
+	image_list.extend(os.listdir(os.path.join(data_dir,'high')))
 	indexes = np.arange(len(image_list))
 	train_indexes,test_indexes=train_test_split(indexes,train_size=4800)
 	validation_indexes,test_indexes=train_test_split(test_indexes,train_size=0.5)

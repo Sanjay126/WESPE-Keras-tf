@@ -4,18 +4,17 @@ from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.optimizers import SGD, Adam
 from datagen import DataGenerator as DataGenerator2
 import datagen
-from tensorflow.keras.applications.vgg_19 import VGG19
+from tensorflow.keras.applications.vgg19 import VGG19
 from tensorflow.keras.callbacks import ModelCheckpoint
 from sklearn.model_selection import train_test_split
-from tensorflow.keras.callbacks.callbacks import EarlyStopping
+from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.models import load_model
+from faves_datagen import *
 
 
 class Faves_model():
 
-    def __init__(self,data_dir,batch_size=25,lr=0.00005):
-        self.data_dir=data_dir
-        self.batch_size=batch_size
+    def __init__(self,lr=0.00005):
         self.lr=lr
         self.class_list = ["Original","Tampered"]
         self.fc_layers = [1024, 1024]
@@ -76,3 +75,6 @@ class Faves_model():
 
     
 
+if __name__=='__main__':
+    obj=Faves_model()
+    obj.train_model()
