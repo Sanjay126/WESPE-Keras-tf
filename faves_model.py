@@ -7,7 +7,8 @@ import datagen
 from tensorflow.keras.applications.vgg_19 import VGG19
 from tensorflow.keras.callbacks import ModelCheckpoint
 from sklearn.model_selection import train_test_split
-
+from tensorflow.keras.callbacks.callbacks import EarlyStopping
+from tensorflow.keras.models import load_model
 
 
 class Faves_model():
@@ -19,6 +20,7 @@ class Faves_model():
         self.class_list = ["Original","Tampered"]
         self.fc_layers = [1024, 1024]
         self.build_finetune_model(0.5,self.fc_layers,len(self.class_list))
+        self.model_ready=None
 
     def build_finetune_model(self, dropout, fc_layers, num_classes):
         base_model = VGG19(weights='imagenet', include_top=False, input_shape=(224, 224, 3))
@@ -49,7 +51,9 @@ class Faves_model():
             os.makedirs("./checkpoints")
 
         checkpoint = ModelCheckpoint(filepath, monitor="val_acc", verbose=1, save_best_only=True)
-        callbacks_list = [checkpoint]
+        early_stopping=EarlyStopping(monitor='val_acc', min_delta=0.05, patience=0, verbose=0, mode='auto', baseline=None, restore_best_weights=False)
+
+        callbacks_list = [checkpoint,early_stopping]
 
         train_generator,validation_generator,test_generator=getGenerators(data_dir,25,2,2)
         history = self.finetune_model.fit_generator(train_generator, epochs=epochs, workers=8,
@@ -57,4 +61,18 @@ class Faves_model():
         print("testing")
         print(self.finetune_model.evaluate_generator(test_generator))
 
+        self.model_ready=True
+
+    def load_finetune_model(self,model_path):
+        self.finetune_model=load_model(model_path)
+        self.model_ready=True
+    
+    def predict(self,images):
+
+        if self.model_ready :
+            self.finetune_model.predict(images)
+        else:
+            raise Exception("train or load the model first")
+
+    
 
