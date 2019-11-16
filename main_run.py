@@ -7,17 +7,18 @@ import pickle
 import time
 import tqdm
 from operations import *
-
+train_data_folder='./dped/iphone/training_data'
+phone='iphone'
+test_data_folder='./dped/iphone/test_data/patches'
 def main():
 
 	phone_res=(100,100)
 	camera_res=(100,100)
 	num_images_per_step=100
-	data_generator=datagen.DataGenerator('./dped/iphone/training_data','iphone',phone_res,camera_res,batch_size=30,training=True)
-	# data_generator=datagen.DataGenerator('./data/iphone','iphone',phone_res,camera_res,batch_size=2,training=True)
+	data_generator=datagen.DataGenerator(train_data_folder,phone,phone_res,camera_res,batch_size=30,training=True)
 	main_model=model.WESPE(phone_res,camera_res)
 	epochs=110
-	test_generator=datagen.DataGenerator('./dped/iphone/test_data/patches','iphone',phone_res,camera_res)
+	test_generator=datagen.DataGenerator(test_data_folder,phone,phone_res,camera_res)
 	train_data=[]
 	test_data=[]
 	for j in range(epochs):
@@ -53,12 +54,6 @@ def main():
 				pickle.dump((train_data,test_data),file)
 		except Exception as e:
 			print(str(e))
-			# with open('model.pkl','wb') as file:
-			# 	pickle.dump(main_model,file)		
-
-	# with open('model.pkl','wb') as file:
-	# 	pickle.dump(main_model,file)
-
 
 def compare_imgs(generated_imgs, target_imgs):
     s_sim=0.0

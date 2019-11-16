@@ -28,8 +28,6 @@ def dataset_creation():
     faves_score =[]
     image=[]
     size=len(os.listdir(DATADIR))
-    # patches=np.empty((size,224,224,3))
-    # labels=np.empty((size,2))
     for file_name in os.listdir(DATADIR):
             
         faves = re.findall(r"_0.(\d+).jpg", file_name)

@@ -1,3 +1,5 @@
 data/*
 flickr/*
 flickr_dataset/*
+model_weights.h5
+checkpoints/*

@@ -8,7 +8,7 @@ from sklearn.model_selection import train_test_split
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.models import load_model
 from faves_datagen import *
-
+import matplotlib.pyplot as plt
 
 class Faves_model():
 
@@ -27,11 +27,9 @@ class Faves_model():
         x = base_model.output
         x = Flatten()(x)
         for fc in fc_layers:
-            # New FC layer, random init
             x = Dense(fc, activation='relu')(x) 
             x = Dropout(dropout)(x)
 
-        # New softmax layer
         predictions = Dense(num_classes, activation='softmax')(x) 
         
         self.finetune_model = Model(inputs=base_model.input, outputs=predictions)
@@ -40,7 +38,7 @@ class Faves_model():
 
     
 
-    def train_model(self,epochs=100,data_dir='./flickr_dataset'):
+    def train_model(self,epochs=100,data_dir='./drive/My Drive/flickr_dataset'):
     
 
         filepath="./checkpoints/" + "faves" + "_model_weights2.h5"
@@ -58,7 +56,21 @@ class Faves_model():
         print("testing")
         print(self.finetune_model.evaluate_generator(test_generator))
         self.finetune_model.save_weights("./model_weights.h5")
-
+        plt.plot(history.history['accuracy'])
+        plt.plot(history.history['val_accuracy'])
+        plt.title('model accuracy')
+        plt.ylabel('accuracy')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'test'], loc='upper left')
+        plt.savefig('./accuracy.jpg')
+        # summarize history for loss
+        plt.plot(history.history['loss'])
+        plt.plot(history.history['val_loss'])
+        plt.title('model loss')
+        plt.ylabel('loss')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'test'], loc='upper left')
+        plt.savefig('./loss.jpg')
 
         self.model_ready=True
 
@@ -70,6 +82,16 @@ class Faves_model():
 
         if self.model_ready :
             self.finetune_model.predict(images)
+        else:
+            raise Exception("train or load the model first")
+
+    def faves_scorer(self,images):
+        score=0.0
+        if self.model_ready:
+            predictions=self.finetune_model.predict(img,steps=1)[1]
+            for p in predictions:
+                score+=p[1]
+            return score/float(len(images))
         else:
             raise Exception("train or load the model first")
 

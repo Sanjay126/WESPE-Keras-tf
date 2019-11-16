@@ -36,10 +36,7 @@ class GaussianBlur(tensorflow.keras.layers.Layer):
 		kernel_weights = np.expand_dims(kernel_weights, axis=-1)
 		kernel_weights = np.repeat(kernel_weights, in_channels, axis=-1)
 		kernel_weights = np.expand_dims(kernel_weights, axis=-1)
-		# print(kernel_weights.shape)
 		self.g_layer = DepthwiseConv2D(kernel_size, use_bias=False, padding='same',weights=[kernel_weights])
-		# print(self.g_layer.get_weights())
-		# self.g_layer.set_weights([kernel_weights])
 		self.g_layer.trainable = False 
 		
 
@@ -158,8 +155,6 @@ class WESPE:
 		self.gen_f_optimizer=tensorflow.keras.optimizers.Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999, amsgrad=False)
 		self.disc_c_optimizer=tensorflow.keras.optimizers.Nadam(learning_rate=0.001, beta_1=0.9, beta_2=0.999)
 		self.disc_t_optimizer=tensorflow.keras.optimizers.Nadam(learning_rate=0.001, beta_1=0.9, beta_2=0.999)
-		# print('trainable_weights')
-		# print(str(len(self.generator_g.trainable_weights)+len(self.generator_f.trainable_weights)+len(self.discriminator_c.trainable_weights)+len(self.discriminator_t.trainable_weights)))
 
 
 	def train_step(self,x,y):
@@ -168,17 +163,11 @@ class WESPE:
 		y=tf.convert_to_tensor(y)
 		batch_size=x.shape[0]
 		with tf.GradientTape(persistent=True) as tape:
-    # tape.watch(x)
-# tape.watch(y)
 			
 			self.generator_g.trainable=True
 			self.generator_f.trainable=True
 
-			# tape.watch(self.generator_f.trainable_weights)
-			# tape.watch(y)
-			# tape.watch(x)
 			y_fake=self.generator_g(x)
-			# tape.watch(y_fake)
 
 			x_fake=self.generator_f(y_fake)
 			pos_indexes=tf.convert_to_tensor(np.asarray([[1.0,0.0]]*batch_size,dtype=np.float32))
@@ -196,11 +185,9 @@ class WESPE:
 
 			y_fake_gray=self.gray(y_fake)
 			y_real_gray=self.gray(y)
-			# print(y_fake_gray.shape)
 			y_fake_gray_pred=self.discriminator_t(y_fake_gray)
 			y_real_gray_pred=self.discriminator_t(y_real_gray)
-			# print(y_fake_gray_pred.shape)
-			# content_loss=tf.math.reduce_mean(self.content_loss.fn(mobilenet_x_fake,mobilenet_x_true))
+
 			content_loss=self.content_loss(mobilenet_x_fake,mobilenet_x_true)
 			tv_loss=self.tv_loss(y_fake)
 			dc_loss_g=self.color_loss(y_real_blur_pred,y_fake_blur_pred)
@@ -215,8 +202,6 @@ class WESPE:
 
 
 		with tf.GradientTape(persistent=True) as tape:
-    # tape.watch(y_fake_blur)
-    # tape.watch(y_fake_gray)
 			self.discriminator_c.trainable=True
 			self.discriminator_t.trainable=True
 
@@ -232,8 +217,6 @@ class WESPE:
 			dt_loss=self.texture_loss(neg_indexes,y_fake_gray_pred)+self.texture_loss(pos_indexes,y_real_gray_pred)
 
 		grads=tape.gradient(dt_loss,self.discriminator_t.trainable_weights)
-		# print(grads)
-		# print(self.discriminator_t.trainable_weights)
 		self.disc_t_optimizer.apply_gradients(zip(grads,self.discriminator_t.trainable_weights))
 		grads=tape.gradient(dc_loss,self.discriminator_c.trainable_weights)
 		self.disc_c_optimizer.apply_gradients(zip(grads,self.discriminator_c.trainable_weights))
