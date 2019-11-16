@@ -2,20 +2,17 @@
 from tensorflow.keras.layers import Dense, Activation, Flatten, Dropout
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.optimizers import SGD, Adam
-from datagen import DataGenerator as DataGenerator2
-import datagen
-from tensorflow.keras.applications.vgg_19 import VGG19
+from tensorflow.keras.applications.vgg19 import VGG19
 from tensorflow.keras.callbacks import ModelCheckpoint
 from sklearn.model_selection import train_test_split
-from tensorflow.keras.callbacks.callbacks import EarlyStopping
+from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.models import load_model
-
+from faves_datagen import *
+import matplotlib.pyplot as plt
 
 class Faves_model():
 
-    def __init__(self,data_dir,batch_size=25,lr=0.00005):
-        self.data_dir=data_dir
-        self.batch_size=batch_size
+    def __init__(self,lr=0.00005):
         self.lr=lr
         self.class_list = ["Original","Tampered"]
         self.fc_layers = [1024, 1024]
@@ -30,11 +27,9 @@ class Faves_model():
         x = base_model.output
         x = Flatten()(x)
         for fc in fc_layers:
-            # New FC layer, random init
             x = Dense(fc, activation='relu')(x) 
             x = Dropout(dropout)(x)
 
-        # New softmax layer
         predictions = Dense(num_classes, activation='softmax')(x) 
         
         self.finetune_model = Model(inputs=base_model.input, outputs=predictions)
@@ -43,7 +38,7 @@ class Faves_model():
 
     
 
-    def train_model(self,train_x,train_y,validation_x,validation_y,epochs):
+    def train_model(self,epochs=100,data_dir='./drive/My Drive/flickr_dataset'):
     
 
         filepath="./checkpoints/" + "faves" + "_model_weights2.h5"
@@ -55,13 +50,32 @@ class Faves_model():
 
         callbacks_list = [checkpoint,early_stopping]
 
-        history = self.finetune_model.fit(train_x,train_y, epochs=epochs, workers=8,
-                                                       shuffle=True, callbacks=callbacks_list,validation_data=(validation_x,validation_y),validation_freq=5,use_multiprocessing=True)
+        train_generator,validation_generator,test_generator=getGenerators(data_dir,25,2,2)
+        history = self.finetune_model.fit_generator(train_generator, epochs=epochs, workers=8,
+                                               shuffle=True, callbacks=callbacks_list,validation_data=validation_generator,validation_freq=5,use_multiprocessing=True)
+        print("testing")
+        print(self.finetune_model.evaluate_generator(test_generator))
+        self.finetune_model.save_weights("./model_weights.h5")
+        plt.plot(history.history['accuracy'])
+        plt.plot(history.history['val_accuracy'])
+        plt.title('model accuracy')
+        plt.ylabel('accuracy')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'test'], loc='upper left')
+        plt.savefig('./accuracy.jpg')
+        # summarize history for loss
+        plt.plot(history.history['loss'])
+        plt.plot(history.history['val_loss'])
+        plt.title('model loss')
+        plt.ylabel('loss')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'test'], loc='upper left')
+        plt.savefig('./loss.jpg')
 
         self.model_ready=True
 
     def load_finetune_model(self,model_path):
-        self.finetune_model=load_model(model_path)
+        self.finetune_model.load_weights(model_path)
         self.model_ready=True
     
     def predict(self,images):
@@ -71,5 +85,18 @@ class Faves_model():
         else:
             raise Exception("train or load the model first")
 
+    def faves_scorer(self,images):
+        score=0.0
+        if self.model_ready:
+            predictions=self.finetune_model.predict(img,steps=1)[1]
+            for p in predictions:
+                score+=p[1]
+            return score/float(len(images))
+        else:
+            raise Exception("train or load the model first")
+
     
 
+if __name__=='__main__':
+    obj=Faves_model()
+    obj.train_model()
