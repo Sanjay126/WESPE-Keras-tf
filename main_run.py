@@ -17,7 +17,7 @@ def main():
 	phone_res=(100,100)
 	camera_res=(100,100)
 	num_images_per_step=100
-	data_generator=datagen.DataGenerator(train_data_folder,phone,phone_res,camera_res,batch_size=5,training=True)
+	data_generator=datagen.DataGenerator(train_data_folder,phone,phone_res,camera_res,batch_size=30,training=True)
 	main_model=model.WESPE(phone_res,camera_res)
 	epochs=110
 	test_generator=datagen.DataGenerator(test_data_folder,phone,phone_res,camera_res)

@@ -2,5 +2,9 @@ data/*
 flickr/*
 flickr_dataset/*
 model_weights.h5
+<<<<<<< HEAD
 checkpoints/*
 data.pkl
+=======
+checkpoints/*
+>>>>>>> 7a051665186f767a4f6ccb9cac429ca6c4fabb3f
